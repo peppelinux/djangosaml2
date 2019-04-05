@@ -144,7 +144,10 @@ def login(request,
                 'available_idps': idps.items(),
                 'came_from': came_from,
                 })
-
+    else:
+        # is the first one, otherwise next logger message will print None
+        selected_idp = list(idps.keys())[0]
+    
     # choose a binding to try first
     sign_requests = getattr(conf, '_sp_authn_requests_signed', False)
     binding = BINDING_HTTP_POST if sign_requests else BINDING_HTTP_REDIRECT
