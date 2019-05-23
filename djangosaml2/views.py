@@ -136,6 +136,13 @@ def login(request,
     selected_idp = request.GET.get('idp', None)
     conf = get_config(config_loader_path, request)
 
+    kwargs = {}
+    # pysaml needs a string otherwise: "cannot serialize True (type bool)"
+    if getattr(conf, '_sp_force_authn'):
+        kwargs['force_authn'] = "true"
+    if getattr(conf, '_sp_allow_create', "false"):
+        kwargs['allow_create'] = "true"
+
     # is a embedded wayf needed?
     idps = available_idps(conf)
     if selected_idp is None and len(idps) > 1:
@@ -147,7 +154,7 @@ def login(request,
     else:
         # is the first one, otherwise next logger message will print None
         selected_idp = list(idps.keys())[0]
-    
+
     # choose a binding to try first
     sign_requests = getattr(conf, '_sp_authn_requests_signed', False)
     binding = BINDING_HTTP_POST if sign_requests else BINDING_HTTP_REDIRECT
