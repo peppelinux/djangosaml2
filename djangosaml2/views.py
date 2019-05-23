@@ -50,13 +50,13 @@ from saml2.xmldsig import SIG_RSA_SHA1, SIG_RSA_SHA256  # support for SHA1 is re
 from djangosaml2.cache import IdentityCache, OutstandingQueriesCache
 from djangosaml2.cache import StateCache
 from djangosaml2.conf import get_config
+from djangosaml2.exceptions import IdPConfigurationMissing
 from djangosaml2.overrides import Saml2Client
 from djangosaml2.signals import post_authenticated
 from djangosaml2.utils import (
     available_idps, fail_acs_response, get_custom_setting,
     get_idp_sso_supported_bindings, get_location, is_safe_url_compat,
 )
-
 
 logger = logging.getLogger('djangosaml2')
 
@@ -141,7 +141,8 @@ def login(request,
     if getattr(conf, '_sp_force_authn'):
         kwargs['force_authn'] = "true"
 
-    kwargs['allow_create'] = getattr(conf, '_sp_allow_create', False)
+    if getattr(conf, '_sp_allow_create', 'false'):
+        kwargs['allow_create'] = "true"
 
     # is a embedded wayf needed?
     idps = available_idps(conf)
@@ -153,6 +154,9 @@ def login(request,
                 })
     else:
         # is the first one, otherwise next logger message will print None
+        if not idps:
+            raise IdPConfigurationMissing(('IdP configuration is missing or '
+                                           'its metadata is expired.'))
         selected_idp = list(idps.keys())[0]
 
     # choose a binding to try first
