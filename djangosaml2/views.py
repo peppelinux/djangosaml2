@@ -395,6 +395,7 @@ def logout(request, config_loader_path=None):
     except Exception as exp:
         logger.error('Error Handled - SLO not supported by IDP: {}'.format(exp))
         auth.logout(request)
+        state.sync()
         return HttpResponseRedirect('/')
 
     state.sync()
