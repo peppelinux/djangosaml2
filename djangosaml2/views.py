@@ -390,7 +390,12 @@ def logout(request, config_loader_path=None):
             'The session does not contain the subject id for user %s',
             request.user)
 
-    result = client.global_logout(subject_id)
+    try:
+        result = client.global_logout(subject_id)
+    except Exception as exp:
+        logger.error('Error Handled - SLO not supported by IDP: {}'.format(exp))
+        auth.logout(request)
+        return HttpResponseRedirect('/')
 
     state.sync()
 
