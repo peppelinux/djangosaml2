@@ -44,6 +44,7 @@ from saml2.response import (
     StatusError, StatusAuthnFailed, SignatureError, StatusRequestDenied,
     UnsolicitedResponse, StatusNoAuthnContext,
 )
+from saml2.mdstore import SourceNotFound
 from saml2.validate import ResponseLifetimeExceed, ToEarly
 from saml2.xmldsig import SIG_RSA_SHA1, SIG_RSA_SHA256  # support for SHA1 is required by spec
 
@@ -134,7 +135,10 @@ def login(request,
                     })
 
     selected_idp = request.GET.get('idp', None)
-    conf = get_config(config_loader_path, request)
+    try:
+        conf = get_config(config_loader_path, request)
+    except SourceNotFound as excp:
+        return HttpResponse('Error, IdP EntityID was not found in metadata: {}'.format(excp))
 
     kwargs = {}
     # pysaml needs a string otherwise: "cannot serialize True (type bool)"
@@ -157,8 +161,6 @@ def login(request,
         if not idps:
             raise IdPConfigurationMissing(('IdP configuration is missing or '
                                            'its metadata is expired.'))
-        selected_idp = list(idps.keys())[0]
-
     # choose a binding to try first
     sign_requests = getattr(conf, '_sp_authn_requests_signed', False)
     binding = BINDING_HTTP_POST if sign_requests else BINDING_HTTP_REDIRECT
