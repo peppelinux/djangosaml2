@@ -134,7 +134,13 @@ def login(request,
                     })
 
     selected_idp = request.GET.get('idp', None)
-    conf = get_config(config_loader_path, request)
+    try:
+        conf = get_config(config_loader_path, request)
+    except SourceNotFound as excp:
+        msg = ('Error, IdP EntityID was not found '
+               'in metadata: {}')
+        logger.error(msg.format(excp))
+        return HttpResponse(msg.format('Please contact technical support.'))
 
     kwargs = {}
     # pysaml needs a string otherwise: "cannot serialize True (type bool)"
