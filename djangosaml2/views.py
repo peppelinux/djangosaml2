@@ -32,7 +32,15 @@ from django.http import HttpResponseServerError  # 50x
 from django.views.decorators.http import require_POST
 from django.shortcuts import render
 from django.template import TemplateDoesNotExist
-from django.utils.six import text_type, binary_type, PY3
+
+try:
+    from django.utils.six import text_type, binary_type, PY3
+except ImportError:
+    import sys
+    PY3 = sys.version_info[0] == 3
+    text_type = str
+    binary_type = bytes
+
 from django.views.decorators.csrf import csrf_exempt
 
 from saml2 import BINDING_HTTP_REDIRECT, BINDING_HTTP_POST
@@ -44,6 +52,7 @@ from saml2.response import (
     StatusError, StatusAuthnFailed, SignatureError, StatusRequestDenied,
     UnsolicitedResponse, StatusNoAuthnContext,
 )
+from saml2.mdstore import SourceNotFound
 from saml2.validate import ResponseLifetimeExceed, ToEarly
 from saml2.xmldsig import SIG_RSA_SHA1, SIG_RSA_SHA256  # support for SHA1 is required by spec
 
@@ -144,7 +153,7 @@ def login(request,
 
     kwargs = {}
     # pysaml needs a string otherwise: "cannot serialize True (type bool)"
-    if getattr(conf, '_sp_force_authn'):
+    if getattr(conf, '_sp_force_authn', False):
         kwargs['force_authn'] = "true"
 
     if getattr(conf, '_sp_allow_create', 'false'):
@@ -163,8 +172,6 @@ def login(request,
         if not idps:
             raise IdPConfigurationMissing(('IdP configuration is missing or '
                                            'its metadata is expired.'))
-        selected_idp = list(idps.keys())[0]
-
     # choose a binding to try first
     sign_requests = getattr(conf, '_sp_authn_requests_signed', False)
     binding = BINDING_HTTP_POST if sign_requests else BINDING_HTTP_REDIRECT
@@ -396,7 +403,13 @@ def logout(request, config_loader_path=None):
             'The session does not contain the subject id for user %s',
             request.user)
 
-    result = client.global_logout(subject_id)
+    try:
+        result = client.global_logout(subject_id)
+    except Exception as exp:
+        logger.error('Error Handled - SLO not supported by IDP: {}'.format(exp))
+        auth.logout(request)
+        state.sync()
+        return HttpResponseRedirect('/')
 
     state.sync()
 
