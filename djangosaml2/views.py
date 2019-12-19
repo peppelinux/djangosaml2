@@ -153,14 +153,6 @@ def login(request,
 
     kwargs = {}
     # pysaml needs a string otherwise: "cannot serialize True (type bool)"
-    if getattr(conf, '_sp_force_authn', False):
-        kwargs['force_authn'] = "true"
-
-    if getattr(conf, '_sp_allow_create', 'false'):
-        kwargs['allow_create'] = "true"
-
-    kwargs = {}
-    # pysaml needs a string otherwise: "cannot serialize True (type bool)"
     if hasattr(conf, '_sp_force_authn'):
         if getattr(conf, '_sp_force_authn') in [0, False, 'false']:
             kwargs['force_authn'] = "false"
