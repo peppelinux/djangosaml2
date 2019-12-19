@@ -159,6 +159,22 @@ def login(request,
     if getattr(conf, '_sp_allow_create', 'false'):
         kwargs['allow_create'] = "true"
 
+    kwargs = {}
+    # pysaml needs a string otherwise: "cannot serialize True (type bool)"
+    if hasattr(conf, '_sp_force_authn'):
+        if getattr(conf, '_sp_force_authn') in [0, False, 'false']:
+            kwargs['force_authn'] = "false"
+        else:
+            kwargs['force_authn'] = "true"
+        
+    if hasattr(conf, '_sp_allow_create'):
+        if getattr(conf, '_sp_allow_create') in [0, False, 'false']:
+            kwargs['allow_create'] = "false"
+        else:
+            kwargs['allow_create'] = "true"
+        
+                                   
+
     # is a embedded wayf needed?
     idps = available_idps(conf)
     if selected_idp is None and len(idps) > 1:
@@ -226,7 +242,8 @@ def login(request,
                 logger.error('Unable to know which IdP to use')
                 return HttpResponse(text_type(e))
             session_id, request_xml = client.create_authn_request(
-                location, binding=binding,
+                location,
+                binding=binding,
                 **kwargs)
             try:
                 if PY3:
