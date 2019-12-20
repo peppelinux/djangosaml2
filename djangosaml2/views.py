@@ -58,6 +58,7 @@ from saml2.xmldsig import SIG_RSA_SHA1, SIG_RSA_SHA256  # support for SHA1 is re
 
 from djangosaml2.cache import IdentityCache, OutstandingQueriesCache
 from djangosaml2.cache import StateCache
+from djangosaml2.exceptions import IdPConfigurationMissing
 from djangosaml2.conf import get_config
 from djangosaml2.exceptions import IdPConfigurationMissing
 from djangosaml2.overrides import Saml2Client
@@ -158,14 +159,12 @@ def login(request,
             kwargs['force_authn'] = "false"
         else:
             kwargs['force_authn'] = "true"
-        
+
     if hasattr(conf, '_sp_allow_create'):
         if getattr(conf, '_sp_allow_create') in [0, False, 'false']:
             kwargs['allow_create'] = "false"
         else:
             kwargs['allow_create'] = "true"
-        
-                                   
 
     # is a embedded wayf needed?
     idps = available_idps(conf)
@@ -180,6 +179,8 @@ def login(request,
         if not idps:
             raise IdPConfigurationMissing(('IdP configuration is missing or '
                                            'its metadata is expired.'))
+        selected_idp = list(idps.keys())[0]
+
     # choose a binding to try first
     sign_requests = getattr(conf, '_sp_authn_requests_signed', False)
     binding = BINDING_HTTP_POST if sign_requests else BINDING_HTTP_REDIRECT
@@ -239,7 +240,7 @@ def login(request,
                 **kwargs)
             try:
                 if PY3:
-                    saml_request = base64.b64encode(binary_type(request_xml, 'UTF-8'))
+                    saml_request = base64.b64encode(binary_type(request_xml, 'UTF-8')).decode('utf-8')
                 else:
                     saml_request = base64.b64encode(binary_type(request_xml))
 
@@ -500,7 +501,17 @@ def do_logout_service(request, data, binding, config_loader_path=None, next_page
                 relay_state=data.get('RelayState', ''))
             state.sync()
             auth.logout(request)
-            return HttpResponseRedirect(get_location(http_info))
+            if (
+                http_info.get('method', 'GET') == 'POST' and
+                'data' in http_info and
+                ('Content-type', 'text/html') in http_info.get('headers', [])
+            ):
+                # need to send back to the IDP a signed POST response with user session
+                # return HTML form content to browser with auto form validation
+                # to finally send request to the IDP
+                return HttpResponse(http_info['data'])
+            else:
+                return HttpResponseRedirect(get_location(http_info))
     else:
         logger.error('No SAMLResponse or SAMLRequest parameter found')
         raise Http404('No SAMLResponse or SAMLRequest parameter found')
