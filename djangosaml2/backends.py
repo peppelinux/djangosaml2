@@ -111,7 +111,10 @@ class Saml2Backend(ModelBackend):
         logger.debug('attribute_mapping: %s', attribute_mapping)
         for saml_attr, django_fields in attribute_mapping.items():
             if django_field in django_fields and saml_attr in attributes:
-                saml_user = attributes[saml_attr][0]
+                try:
+                    saml_user = attributes[saml_attr][0]
+                except IndexError as excp:
+                    logger.error('Get Attribute value missing: {}'.format(excp))
         return saml_user
 
     def is_authorized(self, attributes, attribute_mapping):
