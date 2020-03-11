@@ -16,6 +16,7 @@
 from django.conf.urls import url
 from djangosaml2 import views
 
+app_name='saml2'
 
 urlpatterns = [
     url(r'^login/$', views.login, name='saml2_login'),
